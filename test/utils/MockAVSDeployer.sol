@@ -208,19 +208,19 @@ contract MockAVSDeployer is Test {
         stakeRegistryImplementation =
             new StakeRegistryHarness(IRegistryCoordinator(registryCoordinator), delegationMock, avsDirectory, serviceManager);
         proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(stakeRegistry))),
+            ITransparentUpgradeableProxy(payable(address(stakeRegistry))),
             address(stakeRegistryImplementation)
         );
 
         blsApkRegistryImplementation = new BLSApkRegistryHarness(registryCoordinator);
         proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(blsApkRegistry))),
+            ITransparentUpgradeableProxy(payable(address(blsApkRegistry))),
             address(blsApkRegistryImplementation)
         );
 
         indexRegistryImplementation = new IndexRegistry(registryCoordinator);
         proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(indexRegistry))),
+            ITransparentUpgradeableProxy(payable(address(indexRegistry))),
             address(indexRegistryImplementation)
         );
 
@@ -232,7 +232,7 @@ contract MockAVSDeployer is Test {
             allocationManager
         );
         proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(serviceManager))),
+            ITransparentUpgradeableProxy(payable(address(serviceManager))),
             address(serviceManagerImplementation)
         );
 
@@ -244,7 +244,7 @@ contract MockAVSDeployer is Test {
             uint32(1 days)  // ALLOCATION_CONFIGURATION_DELAY
         );
         proxyAdmin.upgrade(
-            TransparentUpgradeableProxy(payable(address(allocationManager))),
+            ITransparentUpgradeableProxy(payable(address(allocationManager))),
             address(allocationManagerImplementation)
         );
 
@@ -300,7 +300,7 @@ contract MockAVSDeployer is Test {
             }
 
             proxyAdmin.upgradeAndCall(
-                TransparentUpgradeableProxy(payable(address(registryCoordinator))),
+                ITransparentUpgradeableProxy(payable(address(registryCoordinator))),
                 address(registryCoordinatorImplementation),
                 abi.encodeCall(
                     RegistryCoordinator.initialize,
