@@ -38,9 +38,11 @@ contract ECDSAStakeRegistry is
     function initialize(
         address _serviceManager,
         uint256 _thresholdWeight,
-        Quorum memory _quorum
+        Quorum memory _quorum,
+        address _owner
     ) external initializer {
         __ECDSAStakeRegistry_init(_serviceManager, _thresholdWeight, _quorum);
+        _transferOwnership(_owner);
     }
 
     /// @notice Registers a new operator using a provided signature and signing key
