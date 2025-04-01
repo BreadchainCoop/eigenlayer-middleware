@@ -22,11 +22,6 @@ contract OperatorStateRetriever {
         uint96 stake;
     }
 
-    struct OperatorKeys {
-        BN254.G1Point pkG1;
-        BN254.G2Point pkG2;
-    }
-
     struct CheckSignaturesIndices {
         uint32[] nonSignerQuorumBitmapIndices;
         uint32[] quorumApkIndices;
@@ -101,33 +96,6 @@ contract OperatorStateRetriever {
         }
 
         return operators;
-    }
-
-    function getKeyState(
-        ISlashingRegistryCoordinator registryCoordinator,
-        bytes memory quorumNumbers,
-        uint32 blockNumber
-    ) public view returns (OperatorKeys[][] memory) {
-        IIndexRegistry indexRegistry = registryCoordinator.indexRegistry();
-        IBLSApkRegistry blsApkRegistry = registryCoordinator.blsApkRegistry();
-
-        OperatorKeys[][] memory operatorKeys = new OperatorKeys[][](quorumNumbers.length);
-        for (uint256 i = 0; i < quorumNumbers.length; i++) {
-            uint8 quorumNumber = uint8(quorumNumbers[i]);
-            bytes32[] memory operatorIds =
-                indexRegistry.getOperatorListAtBlockNumber(quorumNumber, blockNumber);
-            operatorKeys[i] = new OperatorKeys[](operatorIds.length);
-            for (uint256 j = 0; j < operatorIds.length; j++) {
-                address operator = blsApkRegistry.getOperatorFromPubkeyHash(operatorIds[j]);
-                (uint256 x, uint256 y) = blsApkRegistry.operatorToPubkey(operator);
-                operatorKeys[i][j] = OperatorKeys({
-                    pkG1: BN254.G1Point(x, y),
-                    pkG2: blsApkRegistry.getOperatorPubkeyG2(operator)
-                });
-            }
-        }
-
-        return operatorKeys;
     }
 
     /**
