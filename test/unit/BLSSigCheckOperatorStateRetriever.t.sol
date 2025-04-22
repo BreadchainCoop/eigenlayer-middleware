@@ -203,7 +203,7 @@ contract BLSSigCheckOperatorStateRetrieverUnitTests is MockAVSDeployer {
         registryCoordinator.deregisterOperator(BitmapUtils.bitmapToBytesArray(1));
 
         // should revert because the operator was registered for the first time after the reference block number
-        cheats.expectRevert(BLSSigCheckOperatorStateRetriever.OperatorNotRegistered.selector);
+        cheats.expectRevert(OperatorStateRetriever.OperatorNotRegistered.selector);
         sigCheckOperatorStateRetriever.getCheckSignaturesIndices(
             registryCoordinator,
             uint32(block.number),
@@ -1211,7 +1211,7 @@ contract BLSSigCheckOperatorStateRetrieverUnitTests is MockAVSDeployer {
         quorumNumbers[0] = bytes1(uint8(0)); // Quorum 0
 
         // Should revert because secondOperator was deregistered
-        cheats.expectRevert(BLSSigCheckOperatorStateRetriever.OperatorNotRegistered.selector);
+        cheats.expectRevert(OperatorStateRetriever.OperatorNotRegistered.selector);
         sigCheckOperatorStateRetriever.getNonSignerStakesAndSignature(
             registryCoordinator, quorumNumbers, dummySigma, signingOperators, uint32(block.number)
         );

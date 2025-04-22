@@ -10,25 +10,14 @@ import {BitmapUtils} from "../libraries/BitmapUtils.sol";
 import {BN254} from "../libraries/BN254.sol";
 import {BN256G2} from "./BN256G2.sol";
 
+import {OperatorStateRetriever} from "../OperatorStateRetriever.sol";
+
 /**
  * @title BLSSigCheckOperatorStateRetriever with view functions that allow to retrieve the state of an AVSs registry system.
  * @author Bread coop
  */
-contract BLSSigCheckOperatorStateRetriever {
-    struct Operator {
-        address operator;
-        bytes32 operatorId;
-        uint96 stake;
-    }
+contract BLSSigCheckOperatorStateRetriever is OperatorStateRetriever {
 
-    struct CheckSignaturesIndices {
-        uint32[] nonSignerQuorumBitmapIndices;
-        uint32[] quorumApkIndices;
-        uint32[] totalStakeIndices;
-        uint32[][] nonSignerStakeIndices; // nonSignerStakeIndices[quorumNumberIndex][nonSignerIndex]
-    }
-
-    error OperatorNotRegistered();
     /// @dev Thrown when the signature is not on the curve.
     error InvalidSigma();
 
@@ -112,129 +101,10 @@ contract BLSSigCheckOperatorStateRetriever {
      *            that are also part of the provided quorumNumbers) at the given blocknumber
      *         4) the indices of the quorum apks for each of the provided quorums at the given blocknumber
      */
-    function getCheckSignaturesIndices(
-        ISlashingRegistryCoordinator registryCoordinator,
-        uint32 referenceBlockNumber,
-        bytes memory quorumNumbers,
-        bytes32[] memory nonSignerOperatorIds
-    ) public view returns (CheckSignaturesIndices memory) {
-        IStakeRegistry stakeRegistry = registryCoordinator.stakeRegistry();
-        CheckSignaturesIndices memory checkSignaturesIndices;
 
-        // get the indices of the quorumBitmap updates for each of the operators in the nonSignerOperatorIds array
-        checkSignaturesIndices.nonSignerQuorumBitmapIndices = registryCoordinator
-            .getQuorumBitmapIndicesAtBlockNumber(referenceBlockNumber, nonSignerOperatorIds);
 
-        // get the indices of the totalStake updates for each of the quorums in the quorumNumbers array
-        checkSignaturesIndices.totalStakeIndices =
-            stakeRegistry.getTotalStakeIndicesAtBlockNumber(referenceBlockNumber, quorumNumbers);
 
-        checkSignaturesIndices.nonSignerStakeIndices = new uint32[][](quorumNumbers.length);
-        for (
-            uint8 quorumNumberIndex = 0;
-            quorumNumberIndex < quorumNumbers.length;
-            quorumNumberIndex++
-        ) {
-            uint256 numNonSignersForQuorum = 0;
-            // this array's length will be at most the number of nonSignerOperatorIds, this will be trimmed after it is filled
-            checkSignaturesIndices.nonSignerStakeIndices[quorumNumberIndex] =
-                new uint32[](nonSignerOperatorIds.length);
 
-            for (uint256 i = 0; i < nonSignerOperatorIds.length; i++) {
-                // get the quorumBitmap for the operator at the given blocknumber and index
-                uint192 nonSignerQuorumBitmap = registryCoordinator
-                    .getQuorumBitmapAtBlockNumberByIndex(
-                    nonSignerOperatorIds[i],
-                    referenceBlockNumber,
-                    checkSignaturesIndices.nonSignerQuorumBitmapIndices[i]
-                );
-
-                require(nonSignerQuorumBitmap != 0, OperatorNotRegistered());
-
-                // if the operator was a part of the quorum and the quorum is a part of the provided quorumNumbers
-                if ((nonSignerQuorumBitmap >> uint8(quorumNumbers[quorumNumberIndex])) & 1 == 1) {
-                    // get the index of the stake update for the operator at the given blocknumber and quorum number
-                    checkSignaturesIndices.nonSignerStakeIndices[quorumNumberIndex][numNonSignersForQuorum]
-                    = stakeRegistry.getStakeUpdateIndexAtBlockNumber(
-                        nonSignerOperatorIds[i],
-                        uint8(quorumNumbers[quorumNumberIndex]),
-                        referenceBlockNumber
-                    );
-                    numNonSignersForQuorum++;
-                }
-            }
-
-            // resize the array to the number of nonSigners for this quorum
-            uint32[] memory nonSignerStakeIndicesForQuorum = new uint32[](numNonSignersForQuorum);
-            for (uint256 i = 0; i < numNonSignersForQuorum; i++) {
-                nonSignerStakeIndicesForQuorum[i] =
-                    checkSignaturesIndices.nonSignerStakeIndices[quorumNumberIndex][i];
-            }
-            checkSignaturesIndices.nonSignerStakeIndices[quorumNumberIndex] =
-                nonSignerStakeIndicesForQuorum;
-        }
-
-        IBLSApkRegistry blsApkRegistry = registryCoordinator.blsApkRegistry();
-        // get the indices of the quorum apks for each of the provided quorums at the given blocknumber
-        checkSignaturesIndices.quorumApkIndices =
-            blsApkRegistry.getApkIndicesAtBlockNumber(quorumNumbers, referenceBlockNumber);
-
-        return checkSignaturesIndices;
-    }
-
-    /**
-     * @notice this function returns the quorumBitmaps for each of the operators in the operatorIds array at the given blocknumber
-     * @param registryCoordinator is the AVS registry coordinator to fetch the operator information from
-     * @param operatorIds are the ids of the operators to get the quorumBitmaps for
-     * @param blockNumber is the block number to get the quorumBitmaps for
-     */
-    function getQuorumBitmapsAtBlockNumber(
-        ISlashingRegistryCoordinator registryCoordinator,
-        bytes32[] memory operatorIds,
-        uint32 blockNumber
-    ) external view returns (uint256[] memory) {
-        uint32[] memory quorumBitmapIndices =
-            registryCoordinator.getQuorumBitmapIndicesAtBlockNumber(blockNumber, operatorIds);
-        uint256[] memory quorumBitmaps = new uint256[](operatorIds.length);
-        for (uint256 i = 0; i < operatorIds.length; i++) {
-            quorumBitmaps[i] = registryCoordinator.getQuorumBitmapAtBlockNumberByIndex(
-                operatorIds[i], blockNumber, quorumBitmapIndices[i]
-            );
-        }
-        return quorumBitmaps;
-    }
-
-    /**
-     * @notice This function returns the operatorIds for each of the operators in the operators array
-     * @param registryCoordinator is the AVS registry coordinator to fetch the operator information from
-     * @param operators is the array of operator address to get corresponding operatorIds for
-     * @dev if an operator is not registered, the operatorId will be 0
-     */
-    function getBatchOperatorId(
-        ISlashingRegistryCoordinator registryCoordinator,
-        address[] memory operators
-    ) external view returns (bytes32[] memory operatorIds) {
-        operatorIds = new bytes32[](operators.length);
-        for (uint256 i = 0; i < operators.length; ++i) {
-            operatorIds[i] = registryCoordinator.getOperatorId(operators[i]);
-        }
-    }
-
-    /**
-     * @notice This function returns the operator addresses for each of the operators in the operatorIds array
-     * @param registryCoordinator is the AVS registry coordinator to fetch the operator information from
-     * @param operators is the array of operatorIds to get corresponding operator addresses for
-     * @dev if an operator is not registered, the operator address will be 0
-     */
-    function getBatchOperatorFromId(
-        ISlashingRegistryCoordinator registryCoordinator,
-        bytes32[] memory operatorIds
-    ) external view returns (address[] memory operators) {
-        operators = new address[](operatorIds.length);
-        for (uint256 i = 0; i < operatorIds.length; ++i) {
-            operators[i] = registryCoordinator.getOperatorFromId(operatorIds[i]);
-        }
-    }
 
     // avoid stack too deep
     struct GetNonSignerStakesAndSignatureMemory {
@@ -368,7 +238,7 @@ contract BLSSigCheckOperatorStateRetriever {
             (nonSignerPubkeys[i],) = m.blsApkRegistry.getRegisteredPubkey(nonSignerOperator);
         }
 
-        CheckSignaturesIndices memory checkSignaturesIndices = getCheckSignaturesIndices(
+        CheckSignaturesIndices memory checkSignaturesIndices = this.getCheckSignaturesIndices(
             registryCoordinator, blockNumber, quorumNumbers, trimmedNonSignerOperatorIds
         );
         return IBLSSignatureCheckerTypes.NonSignerStakesAndSignature({
